@@ -89,7 +89,7 @@ class LossType(enum.Enum):
     def is_vb(self):
         return self == LossType.KL or self == LossType.RESCALED_KL
 
-
+# Ab: main logic
 class GaussianDiffusion:
     """
     Utilities for training and sampling diffusion models.
@@ -407,6 +407,7 @@ class GaussianDiffusion:
 
         return result
 
+    # Ab: called in the main entrance (test.py)
     def p_sample_loop(
         self,
         model,

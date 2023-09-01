@@ -62,7 +62,6 @@ def main(conf: conf_mgt.Default_Conf):
 
     device = dist_util.dev(conf.get('device'))
 
-
     model, diffusion = create_model_and_diffusion(
         **select_args(conf, model_and_diffusion_defaults().keys()), conf=conf
     )
@@ -73,7 +72,7 @@ def main(conf: conf_mgt.Default_Conf):
     model.to(device)
     if conf.use_fp16:
         model.convert_to_fp16()
-    model.eval()
+    model.eval() # Ab: eval this early?
 
     show_progress = conf.show_progress
 

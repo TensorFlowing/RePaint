@@ -170,6 +170,7 @@ class GaussianDiffusion:
     def undo(self, image_before_step, img_after_model, est_x_0, t, debug=False):
         return self._undo(img_after_model, t)
 
+    #Ab: resampling
     def _undo(self, img_out, t):
         beta = _extract_into_tensor(self.betas, t, img_out.shape)
 
@@ -368,8 +369,10 @@ class GaussianDiffusion:
                     noise_weight = th.sqrt((1 - alpha_cumprod))
                     noise_part = noise_weight * th.randn_like(x)
 
-                    weighed_gt = gt_part + noise_part
+                    #Ab: add noise to the known part
+                    weighed_gt = gt_part + noise_part #Ab: x^(known)_(t-1) in Algo.1
 
+                #Ab: mix known and unknown part
                 x = (
                     gt_keep_mask * (
                         weighed_gt
@@ -380,7 +383,7 @@ class GaussianDiffusion:
                     )
                 )
 
-
+        #Ab: predict the noise of the current step
         out = self.p_mean_variance(
             model,
             x,
@@ -399,6 +402,7 @@ class GaussianDiffusion:
                 cond_fn, out, x, t, model_kwargs=model_kwargs
             )
 
+        #Ab: I think it's predicted noise (epsilon_theta in Algo.1)
         sample = out["mean"] + nonzero_mask * \
             th.exp(0.5 * out["log_variance"]) * noise
 
@@ -503,19 +507,20 @@ class GaussianDiffusion:
         if conf.schedule_jump_params:
             times = get_schedule_jump(**conf.schedule_jump_params)
 
-            time_pairs = list(zip(times[:-1], times[1:]))
+            time_pairs = list(zip(times[:-1], times[1:])) #Ab: 0-1, 1-2, ...
             if progress:
                 from tqdm.auto import tqdm
-                time_pairs = tqdm(time_pairs)
+                time_pairs = tqdm(time_pairs) 
 
             for t_last, t_cur in time_pairs:
                 idx_wall += 1
                 t_last_t = th.tensor([t_last] * shape[0],  # pylint: disable=not-callable
                                      device=device)
 
-                if t_cur < t_last:  # reverse
+                if t_cur < t_last:  # reverse #Ab: when satisfies?
                     with th.no_grad():
                         image_before_step = image_after_step.clone()
+                        #Ab: pred the noise of the current step
                         out = self.p_sample(
                             model,
                             image_after_step,
@@ -527,6 +532,7 @@ class GaussianDiffusion:
                             conf=conf,
                             pred_xstart=pred_xstart
                         )
+                        #Ab: why image_after_step is the predicted noise?
                         image_after_step = out["sample"]
                         pred_xstart = out["pred_xstart"]
 
@@ -534,7 +540,7 @@ class GaussianDiffusion:
 
                         yield out
 
-                else:
+                else: #Ab: t_cur >= t_last
                     t_shift = conf.get('inpa_inj_time_shift', 1)
 
                     image_before_step = image_after_step.clone()
